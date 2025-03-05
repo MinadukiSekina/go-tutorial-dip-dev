@@ -3,6 +3,7 @@ package chapter1
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 func GetEcho(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +22,7 @@ func GetEcho(w http.ResponseWriter, r *http.Request) {
 	//FIXME: パラメータを取得する
 	var ps = map[string]string{}
 	for k, v := range r.Form {
-		ps[k] = v[0]
+		ps[k] = strings.Join(v, "")
 	}
 
 	//FIXME: パラメータをレスポンスに書き出す
