@@ -1,6 +1,7 @@
 package chapter1
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,6 +10,27 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+type ErrorResponseWriter struct {
+	header     http.Header
+	statusCode int
+}
+
+func (e *ErrorResponseWriter) Header() http.Header {
+	if e.header == nil {
+		e.header = http.Header{}
+	}
+	return e.header
+}
+
+func (e *ErrorResponseWriter) Write(_ []byte) (int, error) {
+	// 意図的にエラーを返す
+	return 0, errors.New("intentional write error")
+}
+
+func (e *ErrorResponseWriter) WriteHeader(statusCode int) {
+	e.statusCode = statusCode
+}
 
 func TestGetEcho(t *testing.T) {
 	success := map[string]struct {
@@ -81,4 +103,15 @@ func TestGetEcho(t *testing.T) {
 			assert.Equal(t, tc.wantStatus, w.Code)
 		})
 	}
+	t.Run("異常: JSONエンコード失敗", func(t *testing.T) {
+		// 正常なGETリクエストを作成
+		r := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+		// エンコード処理でエラーを返すカスタムResponseWriterを利用
+		errW := &ErrorResponseWriter{}
+
+		// 呼び出し
+		GetEcho(errW, r)
+
+		assert.Equal(t, http.StatusInternalServerError, errW.statusCode)
+	})
 }
