@@ -2,7 +2,6 @@ package chapter1
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -15,7 +14,6 @@ func GetEcho(w http.ResponseWriter, r *http.Request) {
 
 	//FIXME: パラメータをFormに変換する
 	if err := r.ParseForm(); err != nil {
-		fmt.Println("Parse error!")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -29,6 +27,7 @@ func GetEcho(w http.ResponseWriter, r *http.Request) {
 	//FIXME: パラメータをレスポンスに書き出す
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(ps); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
