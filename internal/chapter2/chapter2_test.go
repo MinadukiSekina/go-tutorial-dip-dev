@@ -10,11 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type User struct {
-	Name string
-	Age  int
-}
-
 func TestMain(m *testing.M) {
 	m.Run()
 }
@@ -53,6 +48,7 @@ func TestGet(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "http://localhost/?"+param.Encode(), nil)
 			Get(w, r)
 			got := []User{}
+			t.Logf(w.Body.String())
 			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
 				t.Errorf("errpr: %#v, res: %#v", err, got)
 			}
