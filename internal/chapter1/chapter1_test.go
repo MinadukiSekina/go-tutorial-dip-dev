@@ -31,12 +31,18 @@ func TestGetEcho(t *testing.T) {
 	fail := map[string]struct {
 		method     string
 		params     map[string]string
+		rawString  string
 		wantStatus int
 	}{
 		"異常: Getメソッドではない": {
 			method:     http.MethodPost,
 			params:     map[string]string{},
 			wantStatus: http.StatusMethodNotAllowed,
+		},
+		"異常: パラメータが不正": {
+			method:     http.MethodGet,
+			rawString:  "%",
+			wantStatus: http.StatusBadRequest,
 		},
 	}
 
@@ -65,7 +71,12 @@ func TestGetEcho(t *testing.T) {
 				form.Add(k, v)
 			}
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(tc.method, "http://localhost/", strings.NewReader(form.Encode()))
+			var r *http.Request
+			if tc.method == http.MethodGet {
+				r = httptest.NewRequest(http.MethodGet, "http://localhost/?"+form.Encode()+tc.rawString, nil)
+			} else {
+				r = httptest.NewRequest(tc.method, "http://localhost/", strings.NewReader(form.Encode()))
+			}
 			GetEcho(w, r)
 			assert.Equal(t, tc.wantStatus, w.Code)
 		})
