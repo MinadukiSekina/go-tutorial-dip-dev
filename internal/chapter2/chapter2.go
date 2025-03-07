@@ -7,9 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 )
 
-const targetURL = "http://mock:80"
+const targetURL = "http://mock-api"
 
 // 外部APIへリクエストするためのクライアント
 type Client struct {
@@ -19,6 +20,9 @@ type Client struct {
 
 // クライアントの初期化処理
 func NewClient(baseURL string, options ...Option) (*Client, error) {
+	if envURL := os.Getenv("MOCK_API_URL"); envURL != "" {
+		baseURL = envURL
+	}
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
