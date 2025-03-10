@@ -37,6 +37,16 @@ func TestGet(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 	}
+	fail := map[string]struct {
+		method     string
+		wantStatus int
+	}{
+		"異常: Getメソッドではない": {
+			method:     http.MethodPost,
+			wantStatus: http.StatusMethodNotAllowed,
+		},
+	}
+
 	for tn, tc := range success {
 		t.Run(tn, func(t *testing.T) {
 			param := url.Values{}
@@ -54,6 +64,14 @@ func TestGet(t *testing.T) {
 			}
 			assert.Equal(t, tc.wantStatus, w.Code)
 			assert.ElementsMatch(t, got, tc.response)
+		})
+	}
+	for tn, tc := range fail {
+		t.Run(tn, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(tc.method, "http://localhost/", nil)
+			Get(w, r)
+			assert.Equal(t, tc.wantStatus, w.Code)
 		})
 	}
 }
