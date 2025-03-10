@@ -90,14 +90,41 @@ type User struct {
 	Age  int
 }
 
-// func (c *Client) CreateUser(ctx context.Context, user *User) error {
-// 	res, err := c.NewRequestAndDo(ctx, http.MethodPost, c.baseURL.JoinPath("/users"), user)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer res.Body.Close()
-// 	return nil
-// }
+func Create(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// ヘッダーの設定
+	header := map[string][]string{"key": {"dip"}, "Content-Type": {"application/json"}}
+	// クエリパラメータの設定
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid parameters", http.StatusBadRequest)
+		return
+	}
+	var params = map[string]string{}
+	for k, v := range r.Form {
+		params[k] = v[0]
+	}
+
+	// Clientのインスタンス化
+	c, err := NewClient(targetURL)
+	if err != nil {
+		http.Error(w, "Failed to create client", http.StatusInternalServerError)
+		return
+	}
+	// 外部APIへリクエスト
+	res, err2 := c.NewRequestAndDo(ctx, http.MethodPost, c.baseURL.JoinPath("/users"), header, nil, params)
+	if err2 != nil {
+		http.Error(w, err2.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer res.Body.Close()
+}
 
 func Get(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

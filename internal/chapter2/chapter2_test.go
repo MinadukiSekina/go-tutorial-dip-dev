@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,6 +73,46 @@ func TestGet(t *testing.T) {
 			r := httptest.NewRequest(tc.method, "http://localhost/", nil)
 			Get(w, r)
 			assert.Equal(t, tc.wantStatus, w.Code)
+		})
+	}
+}
+
+func TestCreate(t *testing.T) {
+	success := map[string]struct {
+		params     map[string]string
+		response   []User
+		wantStatus int
+	}{
+		"正常ケース": {
+			params: map[string]string{
+				"name": "dip 次郎",
+				"age":  "24",
+			},
+			response: []User{
+				{
+					Name: "dip 次郎",
+					Age:  24,
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+	}
+
+	for tn, tc := range success {
+		t.Run(tn, func(t *testing.T) {
+			form := url.Values{}
+			for k, v := range tc.params {
+				form.Add(k, v)
+			}
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodPost, "http://localhost/", strings.NewReader(form.Encode()))
+			Create(w, r)
+			got := []User{}
+			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+				t.Errorf("errpr: %#v, res: %#v", err, got)
+			}
+			assert.Equal(t, tc.wantStatus, w.Code)
+			assert.ElementsMatch(t, got, tc.response)
 		})
 	}
 }
