@@ -1,11 +1,11 @@
 package chapter2
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,7 +80,7 @@ func TestGet(t *testing.T) {
 func TestCreate(t *testing.T) {
 	success := map[string]struct {
 		params     map[string]string
-		response   []User
+		response   User
 		wantStatus int
 	}{
 		"正常ケース": {
@@ -88,11 +88,9 @@ func TestCreate(t *testing.T) {
 				"name": "dip 次郎",
 				"age":  "24",
 			},
-			response: []User{
-				{
-					Name: "dip 次郎",
-					Age:  24,
-				},
+			response: User{
+				Name: "dip 次郎",
+				Age:  24,
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -100,19 +98,25 @@ func TestCreate(t *testing.T) {
 
 	for tn, tc := range success {
 		t.Run(tn, func(t *testing.T) {
-			form := url.Values{}
-			for k, v := range tc.params {
-				form.Add(k, v)
+			params, err := json.Marshal(tc.params)
+			if err != nil {
+				t.Errorf("error: %#v", err)
+				return
 			}
+
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodPost, "http://localhost/", strings.NewReader(form.Encode()))
+			r := httptest.NewRequest(http.MethodPost, "http://localhost/", bytes.NewReader(params))
+			// Content-Typeヘッダーを追加
+			r.Header.Set("Content-Type", "application/json")
+
 			Create(w, r)
-			got := []User{}
-			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
-				t.Errorf("errpr: %#v, res: %#v", err, got)
+
+			var got User
+			if err = json.NewDecoder(w.Body).Decode(&got); err != nil {
+				t.Errorf("error: %#v, res: %#v", err, got)
 			}
 			assert.Equal(t, tc.wantStatus, w.Code)
-			assert.ElementsMatch(t, got, tc.response)
+			assert.Equal(t, tc.response, got)
 		})
 	}
 }
