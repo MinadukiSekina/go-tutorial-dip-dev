@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -77,6 +78,14 @@ func TestGet(t *testing.T) {
 			assert.Equal(t, tc.wantStatus, w.Code)
 		})
 	}
+	t.Run("異常: パラメータのパース失敗", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "http://localhost/?%", nil)
+		w := httptest.NewRecorder()
+
+		Get(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 	t.Run("異常: ボディのコピーエラー", func(t *testing.T) {
 		param := url.Values{}
 		param.Add("age", "25")
@@ -192,6 +201,16 @@ func TestCreate(t *testing.T) {
 			assert.Equal(t, tc.wantStatus, w.Code)
 		})
 	}
+	t.Run("異常: パラメータのJSONデコード失敗", func(t *testing.T) {
+		params := "test"
+		r := httptest.NewRequest(http.MethodPost, "http://localhost/", strings.NewReader(params))
+		w := httptest.NewRecorder()
+
+		// 呼び出し
+		Create(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 	t.Run("異常: ボディのコピーエラー", func(t *testing.T) {
 		params, _ := json.Marshal(map[string]string{
 			"name": "dip 次郎",
