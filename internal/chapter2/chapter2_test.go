@@ -6,16 +6,52 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-
 	"github.com/dip-dev/go-tutorial/internal/helper/test"
 )
 
 func TestMain(m *testing.M) {
 	m.Run()
+}
+
+func TimeoutOption(timeout time.Duration) Option {
+	return func(c *Client) {
+		c.client.Timeout = timeout
+	}
+}
+
+func TestNewClient(t *testing.T) {
+	t.Run("正常ケース:オプションの設定あり", func(t *testing.T) {
+		baseURL := "http://mock:80"
+		timeout := 10 * time.Second
+		opts := []Option{
+			TimeoutOption(timeout),
+		}
+		client, err := NewClient(baseURL, opts...)
+		assert.NoError(t, err)
+		assert.Equal(t, timeout, client.client.Timeout)
+	})
+	t.Run("正常ケース:baseURLが正しい", func(t *testing.T) {
+		baseURL := "http://mock:80"
+		url, _ := url.Parse(baseURL)
+		client, err := NewClient(baseURL)
+		assert.NoError(t, err)
+		assert.Equal(t, url, client.baseURL)
+	})
+	t.Run("異常ケース:baseURLが不正", func(t *testing.T) {
+		oldBaseURL := os.Getenv("MOCK_API_URL")
+		defer os.Setenv("MOCK_API_URL", oldBaseURL)
+
+		baseURL := ":\\test"
+		os.Setenv("MOCK_API_URL", baseURL)
+		_, err := NewClient(baseURL)
+		assert.Error(t, err)
+	})
 }
 
 func TestGet(t *testing.T) {
