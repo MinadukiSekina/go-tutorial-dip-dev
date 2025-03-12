@@ -1,7 +1,6 @@
 package chapter1
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,28 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/dip-dev/go-tutorial/internal/helper/test"
 )
-
-type ErrorResponseWriter struct {
-	header     http.Header
-	statusCode int
-}
-
-func (e *ErrorResponseWriter) Header() http.Header {
-	if e.header == nil {
-		e.header = http.Header{}
-	}
-	return e.header
-}
-
-func (e *ErrorResponseWriter) Write(_ []byte) (int, error) {
-	// 意図的にエラーを返す
-	return 0, errors.New("intentional write error")
-}
-
-func (e *ErrorResponseWriter) WriteHeader(statusCode int) {
-	e.statusCode = statusCode
-}
 
 func TestGetEcho(t *testing.T) {
 	success := map[string]struct {
@@ -107,11 +87,11 @@ func TestGetEcho(t *testing.T) {
 		// 正常なGETリクエストを作成
 		r := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 		// エンコード処理でエラーを返すカスタムResponseWriterを利用
-		errW := &ErrorResponseWriter{}
+		errW := &test.ErrorResponseWriter{}
 
 		// 呼び出し
 		GetEcho(errW, r)
 
-		assert.Equal(t, http.StatusInternalServerError, errW.statusCode)
+		assert.Equal(t, http.StatusInternalServerError, errW.Code())
 	})
 }
