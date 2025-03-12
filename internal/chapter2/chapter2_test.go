@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/dip-dev/go-tutorial/internal/helper/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
@@ -51,6 +51,15 @@ func TestNewClient(t *testing.T) {
 		os.Setenv("MOCK_API_URL", baseURL)
 		_, err := NewClient(baseURL)
 		assert.Error(t, err)
+	})
+}
+
+func TestWithHTTPClient(t *testing.T) {
+	t.Run("正常ケース:HTTPClientが設定される", func(t *testing.T) {
+		httpClient := &http.Client{}
+		client, err := NewClient("http://mock:80", WithHTTPClient(httpClient))
+		assert.NoError(t, err)
+		assert.Equal(t, httpClient, client.client)
 	})
 }
 
