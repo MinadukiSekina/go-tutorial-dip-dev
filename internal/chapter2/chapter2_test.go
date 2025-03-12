@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/dip-dev/go-tutorial/internal/helper/test"
 )
 
 func TestMain(m *testing.M) {
@@ -75,6 +77,19 @@ func TestGet(t *testing.T) {
 			assert.Equal(t, tc.wantStatus, w.Code)
 		})
 	}
+	t.Run("異常: ボディのコピーエラー", func(t *testing.T) {
+		param := url.Values{}
+		param.Add("age", "25")
+
+		r := httptest.NewRequest(http.MethodGet, "http://localhost/?"+param.Encode(), nil)
+		// エンコード処理でエラーを返すカスタムResponseWriterを利用
+		errW := &test.ErrorResponseWriter{}
+
+		// 呼び出し
+		Get(errW, r)
+
+		assert.Equal(t, http.StatusInternalServerError, errW.Code())
+	})
 }
 
 func TestCreate(t *testing.T) {
@@ -177,4 +192,18 @@ func TestCreate(t *testing.T) {
 			assert.Equal(t, tc.wantStatus, w.Code)
 		})
 	}
+	t.Run("異常: ボディのコピーエラー", func(t *testing.T) {
+		params, _ := json.Marshal(map[string]string{
+			"name": "dip 次郎",
+			"age":  "24",
+		})
+		r := httptest.NewRequest(http.MethodPost, "http://localhost/", bytes.NewReader(params))
+		// エンコード処理でエラーを返すカスタムResponseWriterを利用
+		errW := &test.ErrorResponseWriter{}
+
+		// 呼び出し
+		Create(errW, r)
+
+		assert.Equal(t, http.StatusInternalServerError, errW.Code())
+	})
 }
