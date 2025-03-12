@@ -171,7 +171,7 @@ func TestCreate(t *testing.T) {
 			} else {
 				r = httptest.NewRequest(http.MethodPost, "http://localhost/", bytes.NewReader(params))
 			}
-			
+
 			Create(w, r)
 
 			assert.Equal(t, tc.wantStatus, w.Code)

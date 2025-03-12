@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -117,12 +118,16 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// 必須パラメータのチェック
-	if _, ok := params["name"]; !ok {
+	if name, ok := params["name"]; !ok || name == "" {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
-	if _, ok := params["age"]; !ok {
+	if age, ok := params["age"]; !ok || age == "" {
 		http.Error(w, "age is required", http.StatusBadRequest)
+		return
+	}
+	if _, err := strconv.Atoi(params["age"]); err != nil {
+		http.Error(w, "age is not a number", http.StatusBadRequest)
 		return
 	}
 
