@@ -2,6 +2,7 @@ package chapter2
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,8 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dip-dev/go-tutorial/internal/helper/test"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/dip-dev/go-tutorial/internal/helper/test"
 )
 
 func TestMain(m *testing.M) {
@@ -52,6 +54,93 @@ func TestNewClient(t *testing.T) {
 		_, err := NewClient(baseURL)
 		assert.Error(t, err)
 	})
+}
+
+func TestNewRequestAndDo(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	success := map[string]struct {
+		method string
+		url    url.URL
+		header map[string][]string
+		params map[string]string
+		body   any
+	}{
+		"正常ケース:ヘッダー・パラメータあり": {
+			method: http.MethodGet,
+			url: url.URL{
+				Scheme: "http",
+				Host:   "mock:80",
+			},
+			header: map[string][]string{
+				"key": {"dip"},
+			},
+			params: map[string]string{
+				"age": "25",
+			},
+		},
+		"正常ケース:ヘッダー・パラメータなし": {
+			method: http.MethodGet,
+			url: url.URL{
+				Scheme: "http",
+				Host:   "mock:80",
+			},
+		},
+		"正常ケース:ヘッダー・パラメータなし・ボディがエンコード文字列": {
+			method: http.MethodPost,
+			url: url.URL{
+				Scheme: "http",
+				Host:   "mock:80",
+			},
+			body: url.Values{"name": {"dip 次郎"}, "age": {"24"}}.Encode(),
+		},
+		"正常ケース:ヘッダー・パラメータなし・ボディをJSONとして扱う": {
+			method: http.MethodPost,
+			url: url.URL{
+				Scheme: "http",
+				Host:   "mock:80",
+			},
+			body: map[string]string{"name": "dip 次郎", "age": "24"},
+		},
+	}
+	fail := map[string]struct {
+		method string
+		url    url.URL
+		header map[string][]string
+		params map[string]string
+		body   any
+	}{
+		"異常ケース:baseURLが不正": {
+			method: http.MethodGet,
+			url: url.URL{
+				Scheme: "http",
+				Host:   "invalid-url",
+			},
+		},
+	}
+
+	for tn, tc := range success {
+		t.Run(tn, func(t *testing.T) {
+			c, _ := NewClient(targetURL)
+			res, err := c.NewRequestAndDo(ctx, tc.method, &tc.url, tc.header, tc.params, tc.body)
+			if err != nil {
+				t.Errorf("error: %#v", err)
+				return
+			}
+			defer res.Body.Close()
+		})
+	}
+	for tn, tc := range fail {
+		t.Run(tn, func(t *testing.T) {
+			c, _ := NewClient(targetURL)
+			res, err := c.NewRequestAndDo(ctx, tc.method, &tc.url, tc.header, tc.params, tc.body)
+			assert.Error(t, err)
+			if res != nil {
+				defer res.Body.Close()
+			}
+		})
+	}
 }
 
 func TestWithHTTPClient(t *testing.T) {
