@@ -233,6 +233,23 @@ func TestGet(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, errW.Code())
 	})
+	t.Run("異常ケース:baseURLが不正", func(t *testing.T) {
+		oldBaseURL := os.Getenv("MOCK_API_URL")
+		defer os.Setenv("MOCK_API_URL", oldBaseURL)
+
+		baseURL := ":\\test"
+		os.Setenv("MOCK_API_URL", baseURL)
+
+		param := url.Values{}
+		param.Add("age", "25")
+
+		r := httptest.NewRequest(http.MethodGet, "http://localhost/?"+param.Encode(), nil)
+		w := httptest.NewRecorder()
+
+		Get(w, r)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestCreate(t *testing.T) {
@@ -358,5 +375,24 @@ func TestCreate(t *testing.T) {
 		Create(errW, r)
 
 		assert.Equal(t, http.StatusInternalServerError, errW.Code())
+	})
+	t.Run("異常ケース:baseURLが不正", func(t *testing.T) {
+		oldBaseURL := os.Getenv("MOCK_API_URL")
+		defer os.Setenv("MOCK_API_URL", oldBaseURL)
+
+		baseURL := ":\\test"
+		os.Setenv("MOCK_API_URL", baseURL)
+
+		params, _ := json.Marshal(map[string]string{
+			"name": "dip 次郎",
+			"age":  "24",
+		})
+
+		r := httptest.NewRequest(http.MethodPost, "http://localhost/", bytes.NewReader(params))
+		w := httptest.NewRecorder()
+
+		Create(w, r)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
