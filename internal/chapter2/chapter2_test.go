@@ -141,6 +141,42 @@ func TestNewRequestAndDo(t *testing.T) {
 			}
 		})
 	}
+	t.Run("異常ケース:JSONのマーシャルに失敗", func(t *testing.T) {
+		c, _ := NewClient(targetURL)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		// JSONにマーシャルできない値を渡す
+		invalidBody := make(chan int)
+
+		res, err := c.NewRequestAndDo(
+			ctx,
+			http.MethodPost,
+			&url.URL{Scheme: "http", Host: "example.com"},
+			nil,
+			nil,
+			invalidBody,
+		)
+		assert.Error(t, err)
+		if res != nil {
+			defer res.Body.Close()
+		}
+	})
+	t.Run("異常ケース:リクエスト作成に失敗", func(t *testing.T) {
+		c, _ := NewClient(targetURL)
+		// 不正なメソッドを指定
+		res, err := c.NewRequestAndDo(
+			ctx,
+			"\n", // 不正なHTTPメソッド
+			&url.URL{Scheme: "http", Host: "example.com"},
+			nil,
+			nil,
+			nil,
+		)
+		assert.Error(t, err)
+		if res != nil {
+			defer res.Body.Close()
+		}
+	})
 }
 
 func TestWithHTTPClient(t *testing.T) {
