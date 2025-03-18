@@ -286,6 +286,27 @@ func TestGet(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
+	t.Run("異常ケース:外部APIリクエストに失敗", func(t *testing.T) {
+		// エラーを返すモックサーバーを作成
+		ts := httptest.NewServer(test.Route())
+
+		defer ts.Close()
+
+		// 環境変数を一時的に変更
+		oldURL := os.Getenv("MOCK_API_URL")
+		os.Setenv("MOCK_API_URL", ts.URL)
+		defer os.Setenv("MOCK_API_URL", oldURL)
+
+		param := url.Values{}
+		param.Add("age", "25")
+
+		r := httptest.NewRequest(http.MethodGet, "http://localhost/?"+param.Encode(), nil)
+		w := httptest.NewRecorder()
+
+		Get(w, r)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestCreate(t *testing.T) {
@@ -426,6 +447,28 @@ func TestCreate(t *testing.T) {
 
 		r := httptest.NewRequest(http.MethodPost, "http://localhost/", bytes.NewReader(params))
 		w := httptest.NewRecorder()
+
+		Create(w, r)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+	t.Run("異常ケース:外部APIリクエストに失敗", func(t *testing.T) {
+		// エラーを返すモックサーバーを作成
+		ts := httptest.NewServer(test.Route())
+		defer ts.Close()
+
+		// 環境変数を一時的に変更
+		oldURL := os.Getenv("MOCK_API_URL")
+		os.Setenv("MOCK_API_URL", ts.URL)
+		defer os.Setenv("MOCK_API_URL", oldURL)
+
+		params, _ := json.Marshal(map[string]string{
+			"name": "dip 次郎",
+			"age":  "24",
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(params))
 
 		Create(w, r)
 
