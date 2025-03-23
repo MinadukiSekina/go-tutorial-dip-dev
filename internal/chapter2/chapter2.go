@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-
 )
 
 const targetURL = "http://mock-api"
