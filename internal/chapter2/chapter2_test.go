@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/dip-dev/go-tutorial/internal/helper/networking"
 	"github.com/dip-dev/go-tutorial/internal/helper/test"
 )
 
@@ -21,9 +22,9 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func TimeoutOption(timeout time.Duration) Option {
-	return func(c *Client) {
-		c.client.Timeout = timeout
+func TimeoutOption(timeout time.Duration) networking.Option {
+	return func(c *networking.Client) {
+		c.Client.Timeout = timeout
 	}
 }
 
@@ -31,19 +32,19 @@ func TestNewClient(t *testing.T) {
 	t.Run("正常ケース:オプションの設定あり", func(t *testing.T) {
 		baseURL := "http://mock:80"
 		timeout := 10 * time.Second
-		opts := []Option{
+		opts := []networking.Option{
 			TimeoutOption(timeout),
 		}
-		client, err := NewClient(baseURL, opts...)
+		client, err := networking.NewClient(baseURL, opts...)
 		assert.NoError(t, err)
-		assert.Equal(t, timeout, client.client.Timeout)
+		assert.Equal(t, timeout, client.Client.Timeout)
 	})
 	t.Run("正常ケース:baseURLが正しい", func(t *testing.T) {
 		baseURL := "http://mock:80"
 		url, _ := url.Parse(baseURL)
-		client, err := NewClient(baseURL)
+		client, err := networking.NewClient(baseURL)
 		assert.NoError(t, err)
-		assert.Equal(t, url, client.baseURL)
+		assert.Equal(t, url, client.BaseURL)
 	})
 	t.Run("異常ケース:baseURLが不正", func(t *testing.T) {
 		oldBaseURL := os.Getenv("MOCK_API_URL")
@@ -51,7 +52,7 @@ func TestNewClient(t *testing.T) {
 
 		baseURL := ":\\test"
 		os.Setenv("MOCK_API_URL", baseURL)
-		_, err := NewClient(baseURL)
+		_, err := networking.NewClient(baseURL)
 		assert.Error(t, err)
 	})
 }
@@ -122,7 +123,7 @@ func TestNewRequestAndDo(t *testing.T) {
 
 	for tn, tc := range success {
 		t.Run(tn, func(t *testing.T) {
-			c, _ := NewClient(targetURL)
+			c, _ := networking.NewClient(targetURL)
 			res, err := c.NewRequestAndDo(ctx, tc.method, &tc.url, tc.header, tc.params, tc.body)
 			if err != nil {
 				t.Errorf("error: %#v", err)
@@ -133,7 +134,7 @@ func TestNewRequestAndDo(t *testing.T) {
 	}
 	for tn, tc := range fail {
 		t.Run(tn, func(t *testing.T) {
-			c, _ := NewClient(targetURL)
+			c, _ := networking.NewClient(targetURL)
 			res, err := c.NewRequestAndDo(ctx, tc.method, &tc.url, tc.header, tc.params, tc.body)
 			assert.Error(t, err)
 			if res != nil {
@@ -142,7 +143,7 @@ func TestNewRequestAndDo(t *testing.T) {
 		})
 	}
 	t.Run("異常ケース:JSONのマーシャルに失敗", func(t *testing.T) {
-		c, _ := NewClient(targetURL)
+		c, _ := networking.NewClient(targetURL)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		// JSONにマーシャルできない値を渡す
@@ -162,7 +163,7 @@ func TestNewRequestAndDo(t *testing.T) {
 		}
 	})
 	t.Run("異常ケース:リクエスト作成に失敗", func(t *testing.T) {
-		c, _ := NewClient(targetURL)
+		c, _ := networking.NewClient(targetURL)
 		// 不正なメソッドを指定
 		res, err := c.NewRequestAndDo(
 			ctx,
@@ -182,9 +183,9 @@ func TestNewRequestAndDo(t *testing.T) {
 func TestWithHTTPClient(t *testing.T) {
 	t.Run("正常ケース:HTTPClientが設定される", func(t *testing.T) {
 		httpClient := &http.Client{}
-		client, err := NewClient("http://mock:80", WithHTTPClient(httpClient))
+		client, err := networking.NewClient("http://mock:80", networking.WithHTTPClient(httpClient))
 		assert.NoError(t, err)
-		assert.Equal(t, httpClient, client.client)
+		assert.Equal(t, httpClient, client.Client)
 	})
 }
 
