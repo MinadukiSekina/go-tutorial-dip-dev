@@ -118,8 +118,19 @@ func TestGet(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("異常ケース:外部APIリクエストに失敗", func(t *testing.T) {
+
+		// エラーを起こすためにリダイレクトする
+		handlers := []test.Handler{
+			{
+				Path: "/users",
+				Handler: func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, "/users", http.StatusFound)
+				},
+			},
+		}
+
 		// エラーを返すモックサーバーを作成
-		ts := httptest.NewServer(test.Route())
+		ts := httptest.NewServer(test.Route(handlers...))
 
 		defer ts.Close()
 
@@ -284,8 +295,19 @@ func TestCreate(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("異常ケース:外部APIリクエストに失敗", func(t *testing.T) {
+
+		// エラーを起こすためにリダイレクトする
+		handlers := []test.Handler{
+			{
+				Path: "/users",
+				Handler: func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, "/users", http.StatusFound)
+				},
+			},
+		}
+
 		// エラーを返すモックサーバーを作成
-		ts := httptest.NewServer(test.Route())
+		ts := httptest.NewServer(test.Route(handlers...))
 		defer ts.Close()
 
 		// 環境変数を一時的に変更

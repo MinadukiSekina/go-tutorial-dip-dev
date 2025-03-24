@@ -4,12 +4,17 @@ import (
 	"net/http"
 )
 
-func Route() *http.ServeMux {
+type Handler struct {
+	Path    string
+	Handler http.HandlerFunc
+}
+
+func Route(handlers ...Handler) *http.ServeMux {
 	m := http.NewServeMux()
 
-	m.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/users", http.StatusFound)
-	})
+	for _, h := range handlers {
+		m.HandleFunc(h.Path, h.Handler)
+	}
 
 	return m
 }
