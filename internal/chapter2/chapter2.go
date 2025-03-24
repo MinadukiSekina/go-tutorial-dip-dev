@@ -3,11 +3,12 @@ package chapter2
 import (
 	"context"
 	"encoding/json"
-	"github.com/dip-dev/go-tutorial/internal/helper/networking"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/dip-dev/go-tutorial/internal/helper/networking"
 )
 
 const targetURL = "http://mock-api"
