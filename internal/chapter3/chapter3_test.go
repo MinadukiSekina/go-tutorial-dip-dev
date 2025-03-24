@@ -123,7 +123,7 @@ func MockGetEntry(w http.ResponseWriter, r *http.Request) {
 
 	// クエリ文字列にIDがあるかチェック
 	query := r.URL.Query()
-	idString := query.Get("ID")
+	idString := query.Get("id")
 
 	if idString == "" {
 		http.Error(w, "Invalid parameters", http.StatusBadRequest)
