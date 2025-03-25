@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 
-	"github.com/dip-dev/go-tutorial/internal/helper/test"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/dip-dev/go-tutorial/internal/helper/test"
 )
 
 func TestMain(m *testing.M) {
