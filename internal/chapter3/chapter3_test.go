@@ -56,6 +56,11 @@ func TestGet(t *testing.T) {
 			ts := httptest.NewServer(test.Route(handlers...))
 			defer ts.Close()
 
+			// 環境変数を一時的に変更
+			oldURL := os.Getenv("MOCK_API_URL")
+			os.Setenv("MOCK_API_URL", ts.URL)
+			defer os.Setenv("MOCK_API_URL", oldURL)
+
 			param := url.Values{}
 			for k, v := range tc.params {
 				param.Add(k, v)
