@@ -80,7 +80,7 @@ func TestGet(t *testing.T) {
 				t.Errorf("error: %#v, res: %#v", err, got)
 			}
 			assert.Equal(t, tc.wantStatus, w.Code)
-			assert.Contains(t, keyString, got)
+			assert.Contains(t, got, keyString)
 			assert.ElementsMatch(t, got[keyString], tc.response)
 		})
 	}
@@ -183,7 +183,7 @@ func MockGetEntry(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	var idStrings []string
 	var ok bool
-	idStrings, ok = query["id"]
+	idStrings, ok = query["userID"]
 	if !ok {
 		http.Error(w, "Invalid parameters", http.StatusBadRequest)
 		return
@@ -222,13 +222,14 @@ func MockGetEntry(w http.ResponseWriter, r *http.Request) {
 	var data []Entry
 
 	// ユーザーのIDが一致するものを探す
-	for _, id := range ids {
+	for _, userID := range ids {
 		for _, entry := range entries {
-			if id == entry.UserID {
+			if userID == entry.UserID {
 				data = append(data, entry)
 			}
 		}
 	}
+
 	// 値を返却する
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(data); err != nil {
