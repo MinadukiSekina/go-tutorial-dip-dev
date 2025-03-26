@@ -39,12 +39,12 @@ var (
 	// ユーザー情報取得API（異常）
 	failMockGetUserHandler = test.Handler{
 		Path:    "/users",
-		Handler: MakeRedirectHandler("/entries"),
+		Handler: MakeRedirectHandler("/users"),
 	}
 	// ユーザー情報取得API（異常）
 	failMockGetEntryHandler = test.Handler{
 		Path:    "/entries",
-		Handler: MakeRedirectHandler("/users"),
+		Handler: MakeRedirectHandler("/entries"),
 	}
 	// ユーザー情報取得APIのみ異常発生
 	getUsersFailHandlers = []test.Handler{
@@ -55,6 +55,14 @@ var (
 	getEntriesFailHandlers = []test.Handler{
 		successMockGetUserHandler,
 		failMockGetEntryHandler,
+	}
+	invalidResponseGetUser = test.Handler{
+		Path:    "/users",
+		Handler: MockErrorResponse,
+	}
+	invalidResponseGetEntries = test.Handler{
+		Path:    "/entries",
+		Handler: MockErrorResponse,
 	}
 )
 
@@ -244,6 +252,31 @@ func TestGetUserID(t *testing.T) {
 			response: []int{},
 		},
 	}
+	fail := map[string]struct {
+		params    map[string][]string
+		targetURL string
+		handlers  []test.Handler
+	}{
+		"異常ケース：baseURLが不正": {
+			params: map[string][]string{
+				"name": {"dip 太郎"},
+			},
+			targetURL: ":\\test",
+			handlers:  []test.Handler{successMockGetUserHandler},
+		},
+		"異常ケース：外部APIリクエストに失敗": {
+			params: map[string][]string{
+				"name": {"dip 太郎"},
+			},
+			handlers: getUsersFailHandlers,
+		},
+		"異常ケース：Jsonのデコードに失敗": {
+			params: map[string][]string{
+				"name": {"dip 太郎"},
+			},
+			handlers: []test.Handler{invalidResponseGetUser},
+		},
+	}
 	for tn, tc := range success {
 		t.Run(tn, func(t *testing.T) {
 
@@ -267,6 +300,39 @@ func TestGetUserID(t *testing.T) {
 				assert.ElementsMatch(t, ids, tc.response)
 			case err := <-errch:
 				t.Errorf("Error is occured : %v", err)
+			}
+
+		})
+	}
+	for tn, tc := range fail {
+		t.Run(tn, func(t *testing.T) {
+
+			// 外部APIのモック
+			ts := httptest.NewServer(test.Route(tc.handlers...))
+			defer ts.Close()
+
+			// 環境変数を一時的に変更
+			oldURL := os.Getenv("MOCK_API_URL")
+			var baseURL string
+			if tc.targetURL == "" {
+				baseURL = ts.URL
+			} else {
+				baseURL = tc.targetURL
+			}
+			os.Setenv("MOCK_API_URL", baseURL)
+			defer os.Setenv("MOCK_API_URL", oldURL)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			ch := make(chan []int)
+			errch := make(chan error)
+			go GetUserID(ctx, ch, errch, tc.params)
+			select {
+			case ids := <-ch:
+				t.Errorf("Return ids : %v", ids)
+			case err := <-errch:
+				assert.Error(t, err)
 			}
 
 		})
@@ -300,6 +366,31 @@ func TestGetEntries(t *testing.T) {
 			response: []Entry{},
 		},
 	}
+	fail := map[string]struct {
+		params    map[string][]string
+		targetURL string
+		handlers  []test.Handler
+	}{
+		"異常ケース：baseURLが不正": {
+			params: map[string][]string{
+				"userID": {"123456"},
+			},
+			targetURL: ":\\test",
+			handlers:  []test.Handler{successMockGetEntriesHandler},
+		},
+		"異常ケース：外部APIリクエストに失敗": {
+			params: map[string][]string{
+				"userID": {"123456"},
+			},
+			handlers: getEntriesFailHandlers,
+		},
+		"異常ケース：Jsonのデコードに失敗": {
+			params: map[string][]string{
+				"userID": {"123456"},
+			},
+			handlers: []test.Handler{invalidResponseGetEntries},
+		},
+	}
 	for tn, tc := range success {
 		t.Run(tn, func(t *testing.T) {
 
@@ -323,6 +414,39 @@ func TestGetEntries(t *testing.T) {
 				assert.ElementsMatch(t, entries, tc.response)
 			case err := <-errch:
 				t.Errorf("Error is occured : %v", err)
+			}
+
+		})
+	}
+	for tn, tc := range fail {
+		t.Run(tn, func(t *testing.T) {
+
+			// 外部APIのモック
+			ts := httptest.NewServer(test.Route(tc.handlers...))
+			defer ts.Close()
+
+			// 環境変数を一時的に変更
+			oldURL := os.Getenv("MOCK_API_URL")
+			var baseURL string
+			if tc.targetURL == "" {
+				baseURL = ts.URL
+			} else {
+				baseURL = tc.targetURL
+			}
+			os.Setenv("MOCK_API_URL", baseURL)
+			defer os.Setenv("MOCK_API_URL", oldURL)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			ch := make(chan []Entry)
+			errch := make(chan error)
+			go GetEntries(ctx, ch, errch, tc.params)
+			select {
+			case ids := <-ch:
+				t.Errorf("Return ids : %v", ids)
+			case err := <-errch:
+				assert.Error(t, err)
 			}
 
 		})
@@ -438,4 +562,8 @@ func MakeRedirectHandler(redirectURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirectURL, http.StatusFound)
 	}
+}
+
+func MockErrorResponse(w http.ResponseWriter, _ *http.Request) {
+	http.Error(w, "Encoding json is failed", http.StatusInternalServerError)
 }
