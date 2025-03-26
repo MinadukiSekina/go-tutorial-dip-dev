@@ -193,11 +193,16 @@ func TestGetUser(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			ids, err := GetUserID(ctx, tc.params)
-			if !assert.NoError(t, err) {
-				t.FailNow()
+			ch := make(chan []int)
+			errch := make(chan error)
+			go GetUserID(ctx, ch, errch, tc.params)
+			select {
+			case ids := <-ch:
+				assert.ElementsMatch(t, ids, tc.response)
+			case err := <-errch:
+				t.Errorf("Error is occured : %v", err)
 			}
-			assert.ElementsMatch(t, ids, tc.response)
+
 		})
 	}
 }
