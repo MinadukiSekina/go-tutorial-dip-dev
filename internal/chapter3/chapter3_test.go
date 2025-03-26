@@ -19,45 +19,48 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
+var (
+	// 外部APIのモックサーバー用
+	// ユーザー情報取得API（正常）
+	successMockGetUserHandler = test.Handler{
+		Path:    "/users",
+		Handler: MockGetUser,
+	}
+	// 案件情報取得API（正常）
+	successMockGetEntriesHandler = test.Handler{
+		Path:    "/entries",
+		Handler: MockGetEntry,
+	}
+	// 正常時のハンドラー
+	successHandlers = []test.Handler{
+		successMockGetUserHandler,
+		successMockGetEntriesHandler,
+	}
+	// ユーザー情報取得API（異常）
+	failMockGetUserHandler = test.Handler{
+		Path:    "/users",
+		Handler: MakeRedirectHandler("/entries"),
+	}
+	// ユーザー情報取得API（異常）
+	failMockGetEntryHandler = test.Handler{
+		Path:    "/entries",
+		Handler: MakeRedirectHandler("/users"),
+	}
+	// ユーザー情報取得APIのみ異常発生
+	getUsersFailHandlers = []test.Handler{
+		failMockGetUserHandler,
+		successMockGetEntriesHandler,
+	}
+	// 案件情報取得APIのみ異常発生
+	getEntriesFailHandlers = []test.Handler{
+		successMockGetUserHandler,
+		failMockGetEntryHandler,
+	}
+)
+
 func TestGet(t *testing.T) {
 	// レスポンスに含まれるキーの名前
 	keyString := "entries"
-
-	// 外部APIのモックサーバー用
-	successHandlers := []test.Handler{
-		{
-			Path:    "/users",
-			Handler: MockGetUser,
-		},
-		{
-			Path:    "/entries",
-			Handler: MockGetEntry,
-		},
-	}
-	getUsersFailHandlers := []test.Handler{
-		{
-			Path: "/users",
-			Handler: func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "/entries", http.StatusFound)
-			},
-		},
-		{
-			Path:    "/entries",
-			Handler: MockGetEntry,
-		},
-	}
-	getEntriesFailHandlers := []test.Handler{
-		{
-			Path:    "/users",
-			Handler: MockGetUser,
-		},
-		{
-			Path: "/entries",
-			Handler: func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "/users", http.StatusFound)
-			},
-		},
-	}
 
 	success := map[string]struct {
 		params     map[string][]string
@@ -223,18 +226,21 @@ func TestGet(t *testing.T) {
 func TestGetUserID(t *testing.T) {
 	success := map[string]struct {
 		params   map[string][]string
+		handlers []test.Handler
 		response []int
 	}{
 		"正常ケース：データあり": {
 			params: map[string][]string{
 				"name": {"dip 太郎"},
 			},
+			handlers: []test.Handler{successMockGetUserHandler},
 			response: []int{123456},
 		},
 		"正常ケース：データなし": {
 			params: map[string][]string{
 				"name": {"dip 三郎"},
 			},
+			handlers: []test.Handler{successMockGetUserHandler},
 			response: []int{},
 		},
 	}
@@ -242,13 +248,7 @@ func TestGetUserID(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 
 			// 外部APIのモック
-			handlers := []test.Handler{
-				{
-					Path:    "/users",
-					Handler: MockGetUser,
-				},
-			}
-			ts := httptest.NewServer(test.Route(handlers...))
+			ts := httptest.NewServer(test.Route(tc.handlers...))
 			defer ts.Close()
 
 			// 環境変数を一時的に変更
@@ -276,12 +276,14 @@ func TestGetUserID(t *testing.T) {
 func TestGetEntries(t *testing.T) {
 	success := map[string]struct {
 		params   map[string][]string
+		handlers []test.Handler
 		response []Entry
 	}{
 		"正常ケース：データあり": {
 			params: map[string][]string{
 				"userID": {"123456"},
 			},
+			handlers: []test.Handler{successMockGetEntriesHandler},
 			response: []Entry{
 				{
 					UserID: 123456,
@@ -294,6 +296,7 @@ func TestGetEntries(t *testing.T) {
 			params: map[string][]string{
 				"userID": {"999999"},
 			},
+			handlers: []test.Handler{successMockGetEntriesHandler},
 			response: []Entry{},
 		},
 	}
@@ -301,13 +304,7 @@ func TestGetEntries(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 
 			// 外部APIのモック
-			handlers := []test.Handler{
-				{
-					Path:    "/entries",
-					Handler: MockGetEntry,
-				},
-			}
-			ts := httptest.NewServer(test.Route(handlers...))
+			ts := httptest.NewServer(test.Route(tc.handlers...))
 			defer ts.Close()
 
 			// 環境変数を一時的に変更
@@ -435,4 +432,10 @@ func MockGetEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+}
+
+func MakeRedirectHandler(redirectURL string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+	}
 }
