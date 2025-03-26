@@ -23,9 +23,46 @@ func TestGet(t *testing.T) {
 	// レスポンスに含まれるキーの名前
 	keyString := "entries"
 
+	// 外部APIのモックサーバー用
+	successHandlers := []test.Handler{
+		{
+			Path:    "/users",
+			Handler: MockGetUser,
+		},
+		{
+			Path:    "/entries",
+			Handler: MockGetEntry,
+		},
+	}
+	getUsersFailHandlers := []test.Handler{
+		{
+			Path: "/users",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/entries", http.StatusFound)
+			},
+		},
+		{
+			Path:    "/entries",
+			Handler: MockGetEntry,
+		},
+	}
+	getEntriesFailHandlers := []test.Handler{
+		{
+			Path:    "/users",
+			Handler: MockGetUser,
+		},
+		{
+			Path: "/entries",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/users", http.StatusFound)
+			},
+		},
+	}
+
 	success := map[string]struct {
 		params     map[string][]string
 		response   []Entry
+		handlers   []test.Handler
 		wantStatus int
 	}{
 		"正常ケース：データあり1": {
@@ -39,6 +76,7 @@ func TestGet(t *testing.T) {
 					Salary: 123456,
 				},
 			},
+			handlers:   successHandlers,
 			wantStatus: http.StatusOK,
 		},
 		"正常ケース：データあり2": {
@@ -52,12 +90,15 @@ func TestGet(t *testing.T) {
 					Salary: 123456,
 				},
 			},
+			handlers:   successHandlers,
 			wantStatus: http.StatusOK,
 		},
 	}
 	fail := map[string]struct {
 		method     string
 		params     map[string][]string
+		resWriter  http.ResponseWriter
+		handlers   []test.Handler
 		wantStatus int
 	}{
 		"異常ケース：Getメソッドではない": {
@@ -65,6 +106,7 @@ func TestGet(t *testing.T) {
 			params: map[string][]string{
 				"name": {"dip 太郎"},
 			},
+			handlers:   successHandlers,
 			wantStatus: http.StatusMethodNotAllowed,
 		},
 		"異常ケース：ユーザーデータなし": {
@@ -72,24 +114,51 @@ func TestGet(t *testing.T) {
 			params: map[string][]string{
 				"name": {"dip 三郎"},
 			},
+			handlers:   successHandlers,
 			wantStatus: http.StatusNotFound,
 		},
+		"異常ケース：パラメータにnameが無い": {
+			method: http.MethodGet,
+			params: map[string][]string{
+				"user": {"dip 三郎"},
+			},
+			handlers:   successHandlers,
+			wantStatus: http.StatusBadRequest,
+		},
+		"異常ケース：JSONエンコード失敗": {
+			method: http.MethodGet,
+			params: map[string][]string{
+				"name": {"dip 太郎"},
+			},
+			resWriter:  &test.ErrorResponseWriter{},
+			handlers:   successHandlers,
+			wantStatus: http.StatusInternalServerError,
+		},
+		"異常ケース：ユーザー情報取得時にエラー発生": {
+			method: http.MethodGet,
+			params: map[string][]string{
+				"name": {"dip 太郎"},
+			},
+			resWriter:  &test.ErrorResponseWriter{},
+			handlers:   getUsersFailHandlers,
+			wantStatus: http.StatusInternalServerError,
+		},
+		"異常ケース：案件情報取得時にエラー発生": {
+			method: http.MethodGet,
+			params: map[string][]string{
+				"name": {"dip 太郎"},
+			},
+			resWriter:  &test.ErrorResponseWriter{},
+			handlers:   getEntriesFailHandlers,
+			wantStatus: http.StatusInternalServerError,
+		},
 	}
+
 	for tn, tc := range success {
 		t.Run(tn, func(t *testing.T) {
 
 			// 外部APIのモック
-			handlers := []test.Handler{
-				{
-					Path:    "/users",
-					Handler: MockGetUser,
-				},
-				{
-					Path:    "/entries",
-					Handler: MockGetEntry,
-				},
-			}
-			ts := httptest.NewServer(test.Route(handlers...))
+			ts := httptest.NewServer(test.Route(tc.handlers...))
 			defer ts.Close()
 
 			// 環境変数を一時的に変更
@@ -121,17 +190,7 @@ func TestGet(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 
 			// 外部APIのモック
-			handlers := []test.Handler{
-				{
-					Path:    "/users",
-					Handler: MockGetUser,
-				},
-				{
-					Path:    "/entries",
-					Handler: MockGetEntry,
-				},
-			}
-			ts := httptest.NewServer(test.Route(handlers...))
+			ts := httptest.NewServer(test.Route(tc.handlers...))
 			defer ts.Close()
 
 			// 環境変数を一時的に変更
@@ -146,10 +205,17 @@ func TestGet(t *testing.T) {
 				}
 			}
 
-			w := httptest.NewRecorder()
 			r := httptest.NewRequest(tc.method, "http://localhost/?"+param.Encode(), nil)
-			Get(w, r)
-			assert.Equal(t, tc.wantStatus, w.Code)
+
+			if tc.resWriter == nil {
+				w := httptest.NewRecorder()
+				Get(w, r)
+				assert.Equal(t, tc.wantStatus, w.Code)
+			} else {
+				errW := &test.ErrorResponseWriter{}
+				Get(errW, r)
+				assert.Equal(t, tc.wantStatus, errW.Code())
+			}
 		})
 	}
 }
