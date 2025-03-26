@@ -154,7 +154,7 @@ func TestGet(t *testing.T) {
 	}
 }
 
-func TestGetUser(t *testing.T) {
+func TestGetUserID(t *testing.T) {
 	success := map[string]struct {
 		params   map[string][]string
 		response []int
@@ -199,6 +199,65 @@ func TestGetUser(t *testing.T) {
 			select {
 			case ids := <-ch:
 				assert.ElementsMatch(t, ids, tc.response)
+			case err := <-errch:
+				t.Errorf("Error is occured : %v", err)
+			}
+
+		})
+	}
+}
+
+func TestGetEntries(t *testing.T) {
+	success := map[string]struct {
+		params   map[string][]string
+		response []Entry
+	}{
+		"正常ケース：データあり": {
+			params: map[string][]string{
+				"userID": {"123456"},
+			},
+			response: []Entry{
+				{
+					UserID: 123456,
+					Name:   "案件情報1",
+					Salary: 123456,
+				},
+			},
+		},
+		"正常ケース：データなし": {
+			params: map[string][]string{
+				"userID": {"999999"},
+			},
+			response: []Entry{},
+		},
+	}
+	for tn, tc := range success {
+		t.Run(tn, func(t *testing.T) {
+
+			// 外部APIのモック
+			handlers := []test.Handler{
+				{
+					Path:    "/entries",
+					Handler: MockGetEntry,
+				},
+			}
+			ts := httptest.NewServer(test.Route(handlers...))
+			defer ts.Close()
+
+			// 環境変数を一時的に変更
+			oldURL := os.Getenv("MOCK_API_URL")
+			os.Setenv("MOCK_API_URL", ts.URL)
+			defer os.Setenv("MOCK_API_URL", oldURL)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			ch := make(chan []Entry)
+			errch := make(chan error)
+			go GetEntries(ctx, ch, errch, tc.params)
+			select {
+			case entries := <-ch:
+				assert.ElementsMatch(t, entries, tc.response)
 			case err := <-errch:
 				t.Errorf("Error is occured : %v", err)
 			}
