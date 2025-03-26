@@ -53,6 +53,11 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ユーザーが見つからない場合はエラーを返す
+	if len(ids) == 0 {
+		http.Error(w, "User is not found", http.StatusNotFound)
+		return
+	}
 	// クエリパラメータ用のmapをリセット
 	delete(params, "name")
 	for _, id := range ids {
