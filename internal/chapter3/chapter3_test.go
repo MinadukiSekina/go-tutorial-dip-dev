@@ -181,43 +181,54 @@ func MockGetEntry(w http.ResponseWriter, r *http.Request) {
 
 	// クエリ文字列にIDがあるかチェック
 	query := r.URL.Query()
-	idString := query.Get("id")
-
-	if idString == "" {
+	var idStrings []string
+	var ok bool
+	idStrings, ok = query["id"]
+	if !ok {
+		http.Error(w, "Invalid parameters", http.StatusBadRequest)
+		return
+	}
+	length := len(idStrings)
+	if length == 0 {
 		http.Error(w, "Invalid parameters", http.StatusBadRequest)
 		return
 	}
 
-	id, err := strconv.Atoi(idString)
-	if err != nil {
-		http.Error(w, "Invalid parameters", http.StatusBadRequest)
-		return
+	ids := make([]int, length)
+	var id int
+	var err error
+	for i, idString := range idStrings {
+		id, err = strconv.Atoi(idString)
+		if err != nil {
+			http.Error(w, "Convert is failed", http.StatusInternalServerError)
+			return
+		}
+		ids[i] = id
 	}
 
 	// データを返す
+	entries := []Entry{
+		{
+			UserID: 123456,
+			Name:   "案件情報1",
+			Salary: 123456,
+		},
+		{
+			UserID: 234567,
+			Name:   "案件情報2",
+			Salary: 123456,
+		},
+	}
 	var data []Entry
 
-	switch id {
-	case 123456:
-		data = []Entry{
-			{
-				UserID: 123456,
-				Name:   "案件情報1",
-				Salary: 123456,
-			},
+	// ユーザーのIDが一致するものを探す
+	for _, id := range ids {
+		for _, entry := range entries {
+			if id == entry.UserID {
+				data = append(data, entry)
+			}
 		}
-	case 234567:
-		data = []Entry{
-			{
-				UserID: 234567,
-				Name:   "案件情報2",
-				Salary: 123456,
-			},
-		}
-	default:
-		data = []Entry{}
 	}
-
 	// 値を返却する
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(data); err != nil {
