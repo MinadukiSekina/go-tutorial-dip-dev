@@ -72,11 +72,17 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		params["userID"] = append(params["userID"], strconv.Itoa(id))
 	}
 
-	var entries []Entry
-	entries, err = GetEntries(ctx, params)
+	// データ受信用のチャンネル
+	ch2 := make(chan []Entry)
 
-	if err != nil {
-		http.Error(w, "Getting entries is failed", http.StatusInternalServerError)
+	// データを取得する
+	go GetEntries(ctx, ch2, errch, params)
+
+	var entries []Entry
+	select {
+	case entries = <-ch2:
+	case err = <-errch:
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -125,27 +131,33 @@ func GetUserID(ctx context.Context, ch chan []int, errch chan error, params map[
 	ch <- ids
 }
 
-func GetEntries(ctx context.Context, params map[string][]string) (entries []Entry, err error) {
+func GetEntries(ctx context.Context, ch chan []Entry, errch chan error, params map[string][]string) {
 	// ヘッダーの設定
 	header := map[string][]string{"key": {"dip"}}
 
+	var err error
 	// Clientのインスタンス化
 	var c *networking.Client
 	c, err = networking.NewClient(targetURL)
 	if err != nil {
-		return entries, err
+		errch <- err
+		return
 	}
+
 	// 外部APIへリクエスト
 	var res *http.Response
 	res, err = c.NewRequestAndDo(ctx, http.MethodGet, c.BaseURL.JoinPath("/entries"), header, params, nil)
 	if err != nil {
-		return entries, err
+		errch <- err
+		return
 	}
 	defer res.Body.Close()
 
+	var entries []Entry
 	if err = json.NewDecoder(res.Body).Decode(&entries); err != nil {
-		return entries, err
+		errch <- err
+		return
 	}
 
-	return entries, nil
+	ch <- entries
 }
