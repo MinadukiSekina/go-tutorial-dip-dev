@@ -23,6 +23,71 @@ func TestGet(t *testing.T) {
 	keyString := "entries"
 
 	success := map[string]struct {
+		params     map[string][]string
+		response   []Entry
+		wantStatus int
+	}{
+		"正常ケース": {
+			params: map[string][]string{
+				"name": {"dip 太郎"},
+			},
+			response: []Entry{
+				{
+					Name:   "案件情報1",
+					UserID: 123456,
+					Salary: 123456,
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+	}
+	for tn, tc := range success {
+		t.Run(tn, func(t *testing.T) {
+
+			// 外部APIのモック
+			handlers := []test.Handler{
+				{
+					Path:    "/users",
+					Handler: MockGetUser,
+				},
+				{
+					Path:    "/entries",
+					Handler: MockGetEntry,
+				},
+			}
+			ts := httptest.NewServer(test.Route(handlers...))
+			defer ts.Close()
+
+			// 環境変数を一時的に変更
+			oldURL := os.Getenv("MOCK_API_URL")
+			os.Setenv("MOCK_API_URL", ts.URL)
+			defer os.Setenv("MOCK_API_URL", oldURL)
+
+			param := url.Values{}
+			for k, p := range tc.params {
+				for _, v := range p {
+					param.Add(k, v)
+				}
+			}
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "http://localhost/?"+param.Encode(), nil)
+			Get(w, r)
+			got := map[string][]Entry{}
+			t.Logf(w.Body.String())
+			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+				t.Errorf("error: %#v, res: %#v", err, got)
+			}
+			assert.Equal(t, tc.wantStatus, w.Code)
+			assert.Contains(t, keyString, got)
+			assert.ElementsMatch(t, got[keyString], tc.response)
+		})
+	}
+}
+
+/*
+func TestGetUser(t *testing.T) {
+	success := map[string]struct {
 		params     map[string]string
 		response   []Entry
 		wantStatus int
@@ -82,6 +147,7 @@ func TestGet(t *testing.T) {
 		})
 	}
 }
+*/
 
 func MockGetUser(w http.ResponseWriter, r *http.Request) {
 
