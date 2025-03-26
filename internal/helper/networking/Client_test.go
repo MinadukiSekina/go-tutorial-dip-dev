@@ -56,7 +56,7 @@ func TestNewRequestAndDo(t *testing.T) {
 		method string
 		url    url.URL
 		header map[string][]string
-		params map[string]string
+		params map[string][]string
 		body   any
 	}{
 		"正常ケース:ヘッダー・パラメータあり": {
@@ -68,8 +68,8 @@ func TestNewRequestAndDo(t *testing.T) {
 			header: map[string][]string{
 				"key": {"dip"},
 			},
-			params: map[string]string{
-				"age": "25",
+			params: map[string][]string{
+				"age": {"25"},
 			},
 		},
 		"正常ケース:ヘッダー・パラメータなし": {
@@ -100,7 +100,7 @@ func TestNewRequestAndDo(t *testing.T) {
 		method string
 		url    url.URL
 		header map[string][]string
-		params map[string]string
+		params map[string][]string
 		body   any
 	}{
 		"異常ケース:baseURLが不正": {

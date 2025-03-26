@@ -113,9 +113,9 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid parameters", http.StatusBadRequest)
 		return
 	}
-	var params = map[string]string{}
+	params := map[string][]string{}
 	for k, v := range r.Form {
-		params[k] = v[0]
+		params[k] = append(params[k], v...)
 	}
 
 	// Clientのインスタンス化

@@ -47,7 +47,7 @@ func WithHTTPClient(httpClient *http.Client) Option {
 }
 
 // リクエストの生成と実行
-func (c *Client) NewRequestAndDo(ctx context.Context, method string, apiURL *url.URL, header map[string][]string, params map[string]string, body any) (*http.Response, error) {
+func (c *Client) NewRequestAndDo(ctx context.Context, method string, apiURL *url.URL, header map[string][]string, params map[string][]string, body any) (*http.Response, error) {
 	var reqBody io.Reader
 
 	switch v := body.(type) {
@@ -83,8 +83,10 @@ func (c *Client) NewRequestAndDo(ctx context.Context, method string, apiURL *url
 	// クエリパラメータの設定
 	if params != nil {
 		values := url.Values{}
-		for k, v := range params {
-			values.Add(k, v)
+		for k, param := range params {
+			for _, v := range param {
+				values.Add(k, v)
+			}
 		}
 		req.URL.RawQuery = values.Encode()
 	}
