@@ -45,19 +45,27 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		"name": names,
 	}
 
+	// データ受信用のチャンネル
+	ch1 := make(chan []int)
+	// エラー受信用のチャンネル
+	errch := make(chan error)
+
+	// ユーザー情報を取得する
+	go GetUserID(ctx, ch1, errch, params)
+
 	var ids []int
-	ids, err = GetUserID(ctx, params)
-
-	if err != nil {
-		http.Error(w, "Getting user is failed", http.StatusInternalServerError)
+	select {
+	case ids = <-ch1:
+		// ユーザーが見つからない場合はエラーを返す
+		if len(ids) == 0 {
+			http.Error(w, "User is not found", http.StatusNotFound)
+			return
+		}
+	case err = <-errch:
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// ユーザーが見つからない場合はエラーを返す
-	if len(ids) == 0 {
-		http.Error(w, "User is not found", http.StatusNotFound)
-		return
-	}
 	// クエリパラメータ用のmapをリセット
 	delete(params, "name")
 	for _, id := range ids {
@@ -82,34 +90,39 @@ func Get(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func GetUserID(ctx context.Context, params map[string][]string) (ids []int, err error) {
+func GetUserID(ctx context.Context, ch chan []int, errch chan error, params map[string][]string) {
 	// ヘッダーの設定
 	header := map[string][]string{"key": {"dip"}}
 
+	var err error
 	// Clientのインスタンス化
 	var c *networking.Client
 	c, err = networking.NewClient(targetURL)
 	if err != nil {
-		return ids, err
+		errch <- err
+		return
 	}
 	// 外部APIへリクエスト
 	var res *http.Response
 	res, err = c.NewRequestAndDo(ctx, http.MethodGet, c.BaseURL.JoinPath("/users"), header, params, nil)
 	if err != nil {
-		return ids, err
+		errch <- err
+		return
 	}
 	defer res.Body.Close()
 
 	got := []User{}
 	if err = json.NewDecoder(res.Body).Decode(&got); err != nil {
-		return ids, err
+		errch <- err
+		return
 	}
 
+	var ids []int
 	for _, user := range got {
 		ids = append(ids, user.ID)
 	}
 
-	return ids, nil
+	ch <- ids
 }
 
 func GetEntries(ctx context.Context, params map[string][]string) (entries []Entry, err error) {
