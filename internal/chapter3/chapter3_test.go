@@ -28,7 +28,7 @@ func TestGet(t *testing.T) {
 		response   []Entry
 		wantStatus int
 	}{
-		"正常ケース": {
+		"正常ケース：データあり1": {
 			params: map[string][]string{
 				"name": {"dip 太郎"},
 			},
@@ -40,6 +40,39 @@ func TestGet(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusOK,
+		},
+		"正常ケース：データあり2": {
+			params: map[string][]string{
+				"name": {"dip 次郎"},
+			},
+			response: []Entry{
+				{
+					Name:   "案件情報2",
+					UserID: 234567,
+					Salary: 123456,
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+	}
+	fail := map[string]struct {
+		method     string
+		params     map[string][]string
+		wantStatus int
+	}{
+		"異常ケース：Getメソッドではない": {
+			method: http.MethodPost,
+			params: map[string][]string{
+				"name": {"dip 太郎"},
+			},
+			wantStatus: http.StatusMethodNotAllowed,
+		},
+		"異常ケース：ユーザーデータなし": {
+			method: http.MethodGet,
+			params: map[string][]string{
+				"name": {"dip 三郎"},
+			},
+			wantStatus: http.StatusNotFound,
 		},
 	}
 	for tn, tc := range success {
@@ -82,6 +115,41 @@ func TestGet(t *testing.T) {
 			assert.Equal(t, tc.wantStatus, w.Code)
 			assert.Contains(t, got, keyString)
 			assert.ElementsMatch(t, got[keyString], tc.response)
+		})
+	}
+	for tn, tc := range fail {
+		t.Run(tn, func(t *testing.T) {
+
+			// 外部APIのモック
+			handlers := []test.Handler{
+				{
+					Path:    "/users",
+					Handler: MockGetUser,
+				},
+				{
+					Path:    "/entries",
+					Handler: MockGetEntry,
+				},
+			}
+			ts := httptest.NewServer(test.Route(handlers...))
+			defer ts.Close()
+
+			// 環境変数を一時的に変更
+			oldURL := os.Getenv("MOCK_API_URL")
+			os.Setenv("MOCK_API_URL", ts.URL)
+			defer os.Setenv("MOCK_API_URL", oldURL)
+
+			param := url.Values{}
+			for k, p := range tc.params {
+				for _, v := range p {
+					param.Add(k, v)
+				}
+			}
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(tc.method, "http://localhost/?"+param.Encode(), nil)
+			Get(w, r)
+			assert.Equal(t, tc.wantStatus, w.Code)
 		})
 	}
 }
