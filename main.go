@@ -6,6 +6,7 @@ import (
 
 	"github.com/dip-dev/go-tutorial/internal/chapter1"
 	"github.com/dip-dev/go-tutorial/internal/chapter2"
+	"github.com/dip-dev/go-tutorial/internal/chapter3"
 )
 
 func main() {
@@ -17,6 +18,7 @@ func main() {
 	// FIXME: ハンドラ追加時はこちらにコードを追加してください
 	mux.HandleFunc("/users", chapter2.Get)
 	mux.HandleFunc("/users", chapter2.Create)
+	mux.HandleFunc("/entries", chapter3.Get)
 
 	if err := http.ListenAndServe("0.0.0.0:8080", mux); err != nil {
 		log.Fatalf("failed to launch service: %+v", err)
